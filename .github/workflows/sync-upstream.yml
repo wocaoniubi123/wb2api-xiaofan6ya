@@ -1,0 +1,39 @@
+# 每 30 分钟把上游 xiaofan6ya/wb2api 的 master 合并进本仓库 master。
+# 只在出现新上游提交时产生 merge 提交；冲突时任务失败、不推送，避免带病同步。
+name: Sync upstream
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream-master
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          fetch-depth: 0
+
+      - name: Merge upstream master
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/xiaofan6ya/wb2api.git || true
+          git fetch --no-tags upstream master
+          if git merge-base --is-ancestor upstream/master HEAD; then
+            echo "master 已包含 upstream/master，无需同步"
+            exit 0
+          fi
+          git merge --no-edit upstream/master
+
+      - name: Push master
+        run: git push origin HEAD:master
